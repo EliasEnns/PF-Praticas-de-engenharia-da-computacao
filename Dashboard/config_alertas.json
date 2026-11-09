@@ -1,0 +1,36 @@
+{
+  "rules": [
+    {
+      "id": "a1f142e2",
+      "variable": "cvt_temp",
+      "operator": ">",
+      "threshold": 110.0,
+      "message": "CVT superaquecendo",
+      "enabled": true
+    },
+    {
+      "id": "bc5d70b0",
+      "variable": "motor_temp",
+      "operator": ">",
+      "threshold": 110.0,
+      "message": "Motor superaquecendo",
+      "enabled": true
+    },
+    {
+      "id": "dfdec8a7",
+      "variable": "bateria_mv",
+      "operator": "<",
+      "threshold": 11500.0,
+      "message": "Bateria baixa",
+      "enabled": true
+    },
+    {
+      "id": "7f49094e",
+      "variable": "motor_rpm",
+      "operator": ">",
+      "threshold": 4200.0,
+      "message": "Overspeed motor",
+      "enabled": true
+    }
+  ]
+}

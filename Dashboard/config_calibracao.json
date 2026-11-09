@@ -1,0 +1,62 @@
+{
+  "roda_fr": {
+    "mult": 0.0625,
+    "offset": 0.0
+  },
+  "roda_rr": {
+    "mult": 0.076923,
+    "offset": 0.0
+  },
+  "motor_rpm": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "freio_d": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "freio_t": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "ax": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "ay": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "az": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "gx": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "gy": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "gz": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "bateria_mv": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "motor_temp": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "cvt_temp": {
+    "mult": 1.0,
+    "offset": 0.0
+  },
+  "combustivel": {
+    "mult": 1.0,
+    "offset": 0.0
+  }
+}

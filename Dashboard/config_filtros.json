@@ -1,0 +1,17 @@
+{
+  "roda_fr": 1.0,
+  "roda_rr": 1.0,
+  "motor_rpm": 1.0,
+  "freio_d": 1.0,
+  "freio_t": 1.0,
+  "ax": 1.0,
+  "ay": 1.0,
+  "az": 1.0,
+  "gx": 1.0,
+  "gy": 1.0,
+  "gz": 1.0,
+  "bateria_mv": 1.0,
+  "motor_temp": 1.0,
+  "cvt_temp": 1.0,
+  "combustivel": 1.0
+}
