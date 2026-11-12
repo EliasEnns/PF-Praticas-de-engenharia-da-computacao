@@ -55,8 +55,10 @@ import csv
 import json
 import logging
 import math
+import re
 import threading
 import time
+import unicodedata
 import uuid
 from collections import deque
 from dataclasses import asdict, dataclass
@@ -788,6 +790,25 @@ class GraphStateTracker:
 # SECTION 8 — SERIAL MANAGER
 # =============================================================================
 
+
+def slug_rotulo(texto: Optional[str]) -> str:
+    """Rótulo digitado pelo usuário -> pedaço seguro de nome de arquivo.
+
+    Existe para o ensaio de alcance: grava-se um log por marca e o nome do
+    arquivo carrega a distância, o que dispensa anotar em papel qual log foi
+    qual. Acentos viram ASCII, espaço vira hífen, e o que não for letra,
+    dígito, ponto, hífen ou sublinhado some — o nome precisa sobreviver ao
+    Windows e a um glob de shell.
+    """
+    if not texto:
+        return ""
+    t = unicodedata.normalize("NFKD", str(texto))
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = t.strip().replace(" ", "-")
+    t = re.sub(r"[^A-Za-z0-9._-]", "", t)
+    return t[:40]
+
+
 class SerialManager:
     """
     Gerencia conexão USB CDC via VID:PID, lê linhas JSON em thread daemon,
@@ -816,6 +837,7 @@ class SerialManager:
         self._logging_enabled: bool = False
         self._logging_paused: bool = False
         self._device_kind: Optional[str] = None
+        self._log_rotulo: str = ""
 
     # ---- ciclo de vida -----------------------------------------------------
 
@@ -853,8 +875,17 @@ class SerialManager:
 
     # ---- controle de logging --------------------------------------------------
 
-    def start_logging(self) -> Optional[str]:
-        """Abre novo CSV e inicia gravação. Funciona mesmo sem conexão (gravará ao conectar)."""
+    def start_logging(self, rotulo: Optional[str] = None) -> Optional[str]:
+        """Abre novo CSV e inicia gravação. Funciona mesmo sem conexão (gravará ao conectar).
+
+        Com um rótulo diferente do atual estando já gravando, fecha o arquivo e
+        abre outro. É o que o ensaio de alcance pede: digitar a marca seguinte
+        e dar Enter troca de arquivo, sem passar por parar e iniciar.
+        """
+        novo = slug_rotulo(rotulo)
+        if self._logging_enabled and self._csv_file and novo != self._log_rotulo:
+            self._close_csv()
+        self._log_rotulo = novo
         self._logging_paused = False
         self._logging_enabled = True
         if self._connected.is_set() and not self._csv_file:
@@ -874,6 +905,7 @@ class SerialManager:
     def stop_logging(self) -> None:
         self._logging_enabled = False
         self._logging_paused = False
+        self._log_rotulo = ""
         self._close_csv()
         log.info("Logging CSV parado.")
 
@@ -902,7 +934,8 @@ class SerialManager:
     def _open_csv(self) -> None:
         CSV_DIR.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._csv_path = CSV_DIR / f"telemetria_{ts}.csv"
+        sufixo = f"_{self._log_rotulo}" if self._log_rotulo else ""
+        self._csv_path = CSV_DIR / f"telemetria_{ts}{sufixo}.csv"
         fieldnames = ["pc_ts", "ts", "seq"] + VAR_KEYS + [
             "estop", "tele_rx", "tele_lost", "tele_loss_pct", "tele_rst",
         ] + LINK_CSV_COLS
@@ -1650,9 +1683,22 @@ def build_dashboard_tab() -> html.Div:
                                    "border": f"1px solid {COL_BORDER}",
                                    "padding": "8px 14px", "borderRadius": "6px",
                                    "cursor": "pointer", "fontWeight": 600}),
+                dcc.Input(
+                    id="log-rotulo", type="text", value="", debounce=False,
+                    placeholder="rótulo (ex: 75m)",
+                    style={"backgroundColor": COL_PANEL2, "color": COL_TEXT,
+                           "border": f"1px solid {COL_BORDER}", "borderRadius": "6px",
+                           "padding": "8px 10px", "width": "150px", "fontSize": "13px"},
+                ),
                 html.Span(id="log-status", children="Log não iniciado.",
                           style={"marginLeft": "4px", "color": COL_MUTED, "fontSize": "13px"}),
             ], style={"display": "flex", "gap": "8px", "alignItems": "center"}),
+            html.Div(
+                "O rótulo entra no nome do arquivo. Digite e dê Enter para "
+                "começar a gravar; digitar outro rótulo e dar Enter fecha o "
+                "arquivo atual e abre o seguinte, sem passar por parar e iniciar.",
+                style={"color": COL_MUTED, "fontSize": "12px", "marginTop": "8px"},
+            ),
         ]),
 
         # Painel playback (visibilidade controlada por callback)
@@ -2439,16 +2485,22 @@ def cb_alerts_log(_n: int) -> list[dict[str, Any]]:
     Input("log-start", "n_clicks"),
     Input("log-pause", "n_clicks"),
     Input("log-stop",  "n_clicks"),
+    Input("log-rotulo", "n_submit"),
+    State("log-rotulo", "value"),
     prevent_initial_call=True,
 )
-def cb_logging_controls(_s: int, _p: int, _st: int) -> Any:
+def cb_logging_controls(_s: int, _p: int, _st: int, _sub: int,
+                        rotulo: Optional[str]) -> Any:
     triggered = ctx.triggered_id
-    if triggered == "log-start":
-        if serial_mgr.is_logging_paused():
+    # Enter no campo de rótulo equivale a clicar em iniciar. No ensaio de
+    # alcance isso importa: dá para trocar de marca com uma mão só, sem
+    # procurar o botão com o notebook apoiado no braço.
+    if triggered in ("log-start", "log-rotulo"):
+        if serial_mgr.is_logging_paused() and not slug_rotulo(rotulo):
             serial_mgr.resume_logging()
             name = serial_mgr.csv_path().name if serial_mgr.csv_path() else "—"
             return f"⏺ Gravando: {name}"
-        name = serial_mgr.start_logging()
+        name = serial_mgr.start_logging(rotulo)
         return f"⏺ Gravando: {name}" if name else "⏺ Aguardando conexão para iniciar log..."
     if triggered == "log-pause":
         serial_mgr.pause_logging()
